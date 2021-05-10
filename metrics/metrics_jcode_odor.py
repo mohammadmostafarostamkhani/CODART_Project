@@ -11,7 +11,7 @@ import sys
 
 
 try:
-    sys.path.insert(0, "D:/program files/scitools/bin/pc-win64/python")
+    sys.path.insert(0, "C:\\Program Files\\SciTools\\bin\\pc-win64\\Python")
     import understand as und
 except ModuleNotFoundError:
     # Error handling

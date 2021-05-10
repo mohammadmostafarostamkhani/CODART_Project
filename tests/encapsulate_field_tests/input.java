@@ -9,7 +9,7 @@ class A_New extends A
 }
 class A
 {
-    public int f; /* printF , printF, */
+    private int f; /* printF , printF, */
     public int g; /* printF, printG */
 
     // Method 1

@@ -1,4 +1,4 @@
-/*After refactoring (Refactored version)*/
+/* Before refactoring (Original version) */
 class A_New extends A
 {
     public string h;
@@ -9,26 +9,18 @@ class A_New extends A
 }
 class A
 {
-    private int f;
-	public int getF() { 
-		 return this.f;
-	}
-	public void setF(int f) { 
-		this.f = f;
-	}
-	/*End of accessor and mutator methods!*/
-
-public int g; /* printF, printG */
+    private int f; /* printF , printF, */
+    public int g; /* printF, printG */
 
     // Method 1
     public void printF(int i)
     {
-        this.setF(i * this.getF());
+        this.f = i * this.f;
     }
 
     // Method 2
     public void printF(float i){
-        this.setF((int) (i * this.getF()));
+        this.f = (int) (i * this.f);
         this.g = (int) (i * this.g);
     }
 

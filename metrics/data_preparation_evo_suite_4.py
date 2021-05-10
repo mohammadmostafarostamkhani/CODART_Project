@@ -24,7 +24,7 @@ import math
 # https://scitools.com/support/python-api/
 # Python 3.8 and newer require the user add a call to os.add_dll_directory(“SciTools/bin/“
 # os.add_dll_directory('C:/Program Files/SciTools/bin/pc-win64')
-sys.path.insert(0, 'D:/program files/scitools/bin/pc-win64/python')
+sys.path.insert(0, 'C:\\Program Files\\SciTools\\bin\\pc-win64\\Python')
 
 try:
     import understand

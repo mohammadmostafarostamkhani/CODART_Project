@@ -20,12 +20,14 @@ import argparse
 from antlr4 import *
 
 # Import different grammars
-# from gen.java9.Java9_v2Lexer import Java9_v2Lexer  # Old slow grammar lexer
-# from gen.java9.Java9_v2Parser import Java9_v2Parser  # Old slow grammar parser
+# from gen.java9_v2Le.JavaLexer import javaLexer
+# from gen.java9.Java9_v2Lexer import javaLexer
+from gen.java9.Java9_v2Lexer import Java9_v2Lexer  # Old slow grammar lexer
+from gen.java9.Java9_v2Parser import Java9_v2Parser  # Old slow grammar parser
 # from java9speedy.parser import sa_java9_v2  # Old slow grammar enhanced by CPP backend
 
-from gen.javaLabeled.JavaLexer import JavaLexer  # Java8 grammar efficient lexer
-from gen.javaLabeled.JavaParserLabeled import JavaParserLabeled  # Java8 grammar efficient parser labeled
+# from gen.javaLabeled.JavaLexer import JavaLexer  # Java8 grammar efficient lexer
+# from gen.javaLabeled.JavaParserLabeled import JavaParserLabeled  # Java8 grammar efficient parser labeled
 
 from speedy.src.java9speedy.parser import sa_java9_v2
 
@@ -40,15 +42,15 @@ def main(args):
     # input_stream = StdinStream()
 
     # Step 2: Create an instance of AssignmentStLexer
-    # lexer = Java9_v2Lexer(stream)  # Deprecated
-    lexer = JavaLexer(stream) # Current lexer
+    lexer = Java9_v2Lexer(stream)  # Deprecated
+    # lexer = JavaLexer(stream) # Current lexer
 
     # Step 3: Convert the input source into a list of tokens
     common_token_stream = CommonTokenStream(lexer)
 
     # Step 4: Create an instance of the AssignmentStParser
-    # parser = Java9_v2Parser(common_token_stream)  # Deprecated
-    parser = JavaParserLabeled(common_token_stream)  # Current parser
+    parser = Java9_v2Parser(common_token_stream)  # Deprecated
+    # parser = JavaParserLabeled(common_token_stream)  # Current parser
     # parser.getTokenStream()
 
     # Step 5: Create parse tree
@@ -66,7 +68,7 @@ def main(args):
     walker = ParseTreeWalker()
     walker.walk(t=parse_tree, listener=my_listener)
 
-    with open('../../tests/encapsulate_field_tests/input.refactored.java', mode='w', newline='') as f:
+    with open('tests/encapsulate_field_tests/input.refactored.java', mode='w', newline='') as f:
         f.write(my_listener.token_stream_rewriter.getDefaultText())
 
 
