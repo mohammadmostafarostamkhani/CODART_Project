@@ -57,6 +57,7 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
         self.TAB = "\t"
         self.NEW_LINE = "\n"
         self.code = ""
+        self.is_in_constructor=False
 
     def enterClassDeclaration(self, ctx: JavaParserLabeled.ClassDeclarationContext):
 
@@ -170,19 +171,84 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
             )
             self.detected_method = None
 
-    # def enterConstructorDeclaration(self, ctx: JavaParserLabeled.ConstructorDeclarationContext):
-    #     field_in_constructor = []
-    #
-    #
-    #
-    # def enterConstructorBody(self, ctx: JavaParserLabeled.ConstructorBody):
-    #     pass
-    #
-    # def enterConstructorBody(self, ctx: JavaParserLabeled.ConstructorBody):
-    #     pass
-    #
-    # def exitConstructorDeclaration(self, ctx: JavaParserLabeled.ConstructorDeclarationContext):
-    #     pass
+    def enterConstructorDeclaration(self, ctx: JavaParserLabeled.ConstructorDeclarationContext):
+        if self.is_source_class:
+            self.is_in_constructor=True
+            self.fields_in_constructor = []
+            self.methods_in_constructor=[]
+            self.constructor_body = ctx.block()
+            children=self.constructor_body.children
+            # for child in children:
+            #     if child.getText()=='{' or child.getText()=='}':
+            #         continue
+
+
+    def exitConstructorDeclaration(self, ctx: JavaParserLabeled.ConstructorDeclarationContext):
+        if self.is_source_class and self.is_in_constructor:
+            move_constructor_flag = False
+            for field in self.fields_in_constructor:
+                if field in self.moved_fields:
+                    move_constructor_flag=True
+
+            for method in self.methods_in_constructor:
+                if method in self.moved_methods:
+                    move_constructor_flag=True
+
+            if move_constructor_flag:
+                # start_index = ctx.parentCtx.parentCtx.start.tokenIndex
+                # stop_index = ctx.parentCtx.parentCtx.stop.tokenIndex
+
+                if ctx.formalParameters().formalParameterList():
+                    constructor_parameters = [ctx.formalParameters().formalParameterList().children[i] for i in
+                                              range(len(ctx.formalParameters().formalParameterList().children)) if
+                                              i % 2 == 0]
+                else:
+                    constructor_parameters = []
+
+                constructor_text = ''
+                for modifier in ctx.parentCtx.parentCtx.modifier():
+                    constructor_text += modifier.getText() + ' '
+                # constructor_text += ctx.IDENTIFIER().getText()#======
+                constructor_text += self.new_class
+                constructor_text += ' ( '
+                for parameter in constructor_parameters:
+                    constructor_text += parameter.typeType().getText() + ' '
+                    constructor_text += parameter.variableDeclaratorId().getText() + ', '
+                if constructor_parameters:
+                    constructor_text = constructor_text[:len(constructor_text) - 2]
+                constructor_text += ')\n\t{'
+                constructor_text += self.token_stream_rewriter.getText(
+                    program_name=self.token_stream_rewriter.DEFAULT_PROGRAM_NAME,
+                    start=ctx.block().start.tokenIndex + 1,
+                    stop=ctx.block().stop.tokenIndex - 1
+                )
+                constructor_text += '}\n'
+
+                self.code += constructor_text
+
+                start_index = ctx.parentCtx.parentCtx.start.tokenIndex
+                stop_index = ctx.parentCtx.parentCtx.stop.tokenIndex
+                self.token_stream_rewriter.delete(
+                    program_name=self.token_stream_rewriter.DEFAULT_PROGRAM_NAME,
+                    from_idx=start_index,
+                    to_idx=stop_index
+                )
+
+        self.is_in_constructor=False
+
+    def enterExpression21(self,ctx:JavaParserLabeled.Expression21Context):
+        if self.is_source_class and self.is_in_constructor:
+            if len(ctx.children[0].children)==1:
+                self.fields_in_constructor.append(ctx.children[0].getText())
+            else:
+                self.fields_in_constructor.append(ctx.children[0].children[-1].getText())
+
+    def enterMethodCall0(self, ctx:JavaParserLabeled.MethodCall0Context):
+        if self.is_source_class and self.is_in_constructor:
+            self.methods_in_constructor.append(ctx.IDENTIFIER())
+
+
+
 
 """
 Utilities related to project directory.
@@ -235,16 +301,139 @@ def update_understand_database(udb_path, project_dir=None, und_path='/home/ali/s
     process.wait()
 
 
+#=======================================================================
+class FindUsagesListener(JavaParserLabeledListener):
+    def __init__(
+            self,common_token_stream: CommonTokenStream = None,
+            source_class: str = None, new_class: str = None,
+            moved_fields=None, moved_methods=None,
+            output_path: str = ""):
+
+        if moved_methods is None:
+            self.moved_methods = []
+        else:
+            self.moved_methods = moved_methods
+
+        if moved_fields is None:
+            self.moved_fields = []
+        else:
+            self.moved_fields = moved_fields
+
+        if common_token_stream is None:
+            raise ValueError('common_token_stream is None')
+        else:
+            self.token_stream_rewriter = TokenStreamRewriter(common_token_stream)
+
+        if source_class is None:
+            raise ValueError("source_class is None")
+        else:
+            self.source_class = source_class
+
+        if new_class is None:
+            raise ValueError("new_class is None")
+        else:
+            self.new_class = new_class
+
+        self.output_path = output_path
+
+        self.is_source_class = False
+        self.detected_field = None
+        self.detected_method = None
+        self.TAB = "\t"
+        self.NEW_LINE = "\n"
+        self.code = ""
+
+    # def enter
+
+
+#=======================================================================
+
+
+class ExtractSubclassAPI:
+    def __init__(self, project_dir, file_path, source_class, new_class, moved_fields, moved_methods,
+                 new_file_path=None):
+        self.project_dir = project_dir
+        self.file_path = file_path
+        self.new_file_path = new_file_path or "/home/ali/Documents/dev/CodART/input.refactored.java"
+        self.source_class = source_class
+        self.new_class = new_class
+        self.moved_fields = moved_fields
+        self.moved_methods = moved_methods
+        self.stream = FileStream(self.file_path, encoding="utf8")
+        self.lexer = JavaLexer(self.stream)
+        self.token_stream = CommonTokenStream(self.lexer)
+        self.parser = JavaParserLabeled(self.token_stream)
+        self.tree = self.parser.compilationUnit()
+        self.walker = ParseTreeWalker()
+        self.checked = False
+
+    def extract_subclass(self):
+        # udb_path = "/home/ali/Desktop/code/TestProject/TestProject.udb"
+        # udb_path=create_understand_database("C:\\Users\\asus\\Desktop\\test_project")
+        # source_class = "GodClass"
+        # moved_methods = ['method1', 'method3', ]
+        # moved_fields = ['field1', 'field2', ]
+        udb_path = "C:\\Users\\asus\\Desktop\\test_project\\test_project.udb"
+        source_class = "CDL"
+        moved_methods = ['getValue', 'rowToJSONArray', 'getVal', ]
+        moved_fields = ['number', 'number_2', 'number_1', ]
+
+        # initialize with understand
+        father_path_file = ""
+        file_list_to_be_propagate = set()
+        propagate_classes = set()
+
+        db = und.open(udb_path)
+        # db=open(udb_path)
+
+        for cls in db.ents("class"):
+            if (cls.simplename() == source_class):
+                father_path_file = cls.parent().longname()
+                for ref in cls.refs("Coupleby"):
+                    # print(ref.ent().longname())
+                    propagate_classes.add(ref.ent().longname())
+                    # print(ref.ent().parent().relname())
+                    # file_list_to_be_propagate.add(ref.ent().parent().relname())
+            # if(cls.longname()==fatherclass):
+            #     print(cls.parent().relname())
+            #     father_path_file=cls.parent().relname()
+
+        father_path_file = "C:\\Users\\asus\\Desktop\\test_project\\CDL.java"
+        father_path_directory = "C:\\Users\\asus\\Desktop\\test_project"
+
+        stream = FileStream(father_path_file, encoding='utf8')
+        lexer = JavaLexer(stream)
+        token_stream = CommonTokenStream(lexer)
+        parser = JavaParserLabeled(token_stream)
+        parser.getTokenStream()
+        parse_tree = parser.compilationUnit()
+        my_listener = ExtractSubClassRefactoringListener(common_token_stream=token_stream,
+                                                         source_class=source_class,
+                                                         new_class=source_class + "extracted",
+                                                         moved_fields=moved_fields, moved_methods=moved_methods,
+                                                         output_path=father_path_directory)
+        walker = ParseTreeWalker()
+        walker.walk(t=parse_tree, listener=my_listener)
+
+        with open(father_path_file, mode='w', newline='') as f:
+            f.write(my_listener.token_stream_rewriter.getDefaultText())
+
+    # def propagate_refactor(self):
+
+
+
+
+
 def main():
     # udb_path = "/home/ali/Desktop/code/TestProject/TestProject.udb"
     # udb_path=create_understand_database("C:\\Users\\asus\\Desktop\\test_project")
     # source_class = "GodClass"
     # moved_methods = ['method1', 'method3', ]
     # moved_fields = ['field1', 'field2', ]
-    udb_path="C:\\Users\\asus\\Desktop\\test_project\\test_project.udb"
+    udb_path = "C:\\Users\\asus\\Desktop\\test_project\\test_project.udb"
     source_class = "CDL"
     moved_methods = ['getValue', 'rowToJSONArray', 'getVal', ]
-    moved_fields = ['number', 'number_2', 'number_1', ]
+    moved_fields = ['number_2', 'number_1', ]
 
     # initialize with understand
     father_path_file = ""
@@ -258,16 +447,10 @@ def main():
         if (cls.simplename() == source_class):
             father_path_file = cls.parent().longname()
             for ref in cls.refs("Coupleby"):
-                # print(ref.ent().longname())
                 propagate_classes.add(ref.ent().longname())
-                # print(ref.ent().parent().relname())
-                # file_list_to_be_propagate.add(ref.ent().parent().relname())
-        # if(cls.longname()==fatherclass):
-        #     print(cls.parent().relname())
-        #     father_path_file=cls.parent().relname()
 
-    father_path_file="C:\\Users\\asus\\Desktop\\test_project\\CDL.java"
-    father_path_directory="C:\\Users\\asus\\Desktop\\test_project"
+    father_path_file = "C:\\Users\\asus\\Desktop\\test_project\\CDL.java"
+    father_path_directory = "C:\\Users\\asus\\Desktop\\test_project"
 
     stream = FileStream(father_path_file, encoding='utf8')
     lexer = JavaLexer(stream)
@@ -285,6 +468,10 @@ def main():
 
     with open(father_path_file, mode='w', newline='') as f:
         f.write(my_listener.token_stream_rewriter.getDefaultText())
+
+    #================================================================================
+
+    # find_usages_listener = FindUsagesListener()
 
 
 
