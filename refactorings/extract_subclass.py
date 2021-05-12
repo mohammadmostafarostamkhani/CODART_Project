@@ -14,6 +14,7 @@ from antlr4.TokenStreamRewriter import TokenStreamRewriter
 from gen.javaLabeled.JavaParserLabeled import JavaParserLabeled
 from gen.javaLabeled.JavaParserLabeledListener import JavaParserLabeledListener
 
+
 class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
     """
     To implement extract class refactoring based on its actors.
@@ -49,7 +50,7 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
         else:
             self.new_class = new_class
 
-        self.output_path=output_path
+        self.output_path = output_path
 
         self.is_source_class = False
         self.detected_field = None
@@ -57,9 +58,12 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
         self.TAB = "\t"
         self.NEW_LINE = "\n"
         self.code = ""
-        self.is_in_constructor=False
+        self.is_in_constructor = False
 
     def enterClassDeclaration(self, ctx: JavaParserLabeled.ClassDeclarationContext):
+        """
+        It checks if it is source class, we generate the declaration of the new class, by appending some text to self.code.
+        """
 
         class_identifier = ctx.IDENTIFIER().getText()
         if class_identifier == self.source_class:
@@ -71,21 +75,33 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
             self.is_source_class = False
 
     def exitClassDeclaration(self, ctx: JavaParserLabeled.ClassDeclarationContext):
+        """
+        It close the opened curly brackets If it is the source class.
+        """
+
         if self.is_source_class:
             self.code += "}"
             self.is_source_class = False
 
     def exitCompilationUnit(self, ctx: JavaParserLabeled.CompilationUnitContext):
+        """
+        it writes self.code in the output path.​
+        """
+
         # self.token_stream_rewriter.insertAfter(
         #     index=ctx.stop.tokenIndex,
         #     text=self.code
         # )
 
-        child_file_name=self.new_class+".java"
-        with open(os.path.join(self.output_path,child_file_name),"w+") as f:
-            f.write(self.code.replace('\r\n','\n'))
+        child_file_name = self.new_class + ".java"
+        with open(os.path.join(self.output_path, child_file_name), "w+") as f:
+            f.write(self.code.replace('\r\n', '\n'))
 
     def enterVariableDeclaratorId(self, ctx: JavaParserLabeled.VariableDeclaratorIdContext):
+        """
+        It sets the detected field to the field if it is one of the moved fields. ​
+        """
+
         if not self.is_source_class:
             return None
         field_identifier = ctx.IDENTIFIER().getText()
@@ -93,6 +109,10 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
             self.detected_field = field_identifier
 
     def exitFieldDeclaration(self, ctx: JavaParserLabeled.FieldDeclarationContext):
+        """
+        It gets the field name, if the field is one of the moved fields, we move it and delete it from the source program. ​
+        """
+
         if not self.is_source_class:
             return None
         # field_names = ctx.variableDeclarators().getText().split(",")
@@ -125,18 +145,22 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
             #     to_idx=grand_parent_ctx.stop.tokenIndex
             # )
 
-            #delete field from source class ==>new
+            # delete field from source class ==>new
             start_index = ctx.parentCtx.parentCtx.start.tokenIndex
             stop_index = ctx.parentCtx.parentCtx.stop.tokenIndex
             self.token_stream_rewriter.delete(
-                    program_name=self.token_stream_rewriter.DEFAULT_PROGRAM_NAME,
-                    from_idx=start_index,
-                    to_idx=stop_index
+                program_name=self.token_stream_rewriter.DEFAULT_PROGRAM_NAME,
+                from_idx=start_index,
+                to_idx=stop_index
             )
 
             self.detected_field = None
 
     def enterMethodDeclaration(self, ctx: JavaParserLabeled.MethodDeclarationContext):
+        """
+        It sets the detected field to the method if it is one of the moved methods. ​
+        """
+
         if not self.is_source_class:
             return None
         method_identifier = ctx.IDENTIFIER().getText()
@@ -144,11 +168,14 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
             self.detected_method = method_identifier
 
     def exitMethodDeclaration(self, ctx: JavaParserLabeled.MethodDeclarationContext):
+        """
+        It gets the method name, if the method is one of the moved methods, we move it to the subclass and delete it from the source program.
+        """
+
         if not self.is_source_class:
             return None
         method_identifier = ctx.IDENTIFIER().getText()
         if self.detected_method == method_identifier:
-
             # method_modifier = ctx.parentCtx.parentCtx.modifier(0)
             # if(method_modifier!=)
             # method_modifier_text=method_modifier.getText()
@@ -173,26 +200,25 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
 
     def enterConstructorDeclaration(self, ctx: JavaParserLabeled.ConstructorDeclarationContext):
         if self.is_source_class:
-            self.is_in_constructor=True
+            self.is_in_constructor = True
             self.fields_in_constructor = []
-            self.methods_in_constructor=[]
+            self.methods_in_constructor = []
             self.constructor_body = ctx.block()
-            children=self.constructor_body.children
+            children = self.constructor_body.children
             # for child in children:
             #     if child.getText()=='{' or child.getText()=='}':
             #         continue
-
 
     def exitConstructorDeclaration(self, ctx: JavaParserLabeled.ConstructorDeclarationContext):
         if self.is_source_class and self.is_in_constructor:
             move_constructor_flag = False
             for field in self.fields_in_constructor:
                 if field in self.moved_fields:
-                    move_constructor_flag=True
+                    move_constructor_flag = True
 
             for method in self.methods_in_constructor:
                 if method in self.moved_methods:
-                    move_constructor_flag=True
+                    move_constructor_flag = True
 
             if move_constructor_flag:
                 # start_index = ctx.parentCtx.parentCtx.start.tokenIndex
@@ -234,20 +260,18 @@ class ExtractSubClassRefactoringListener(JavaParserLabeledListener):
                     to_idx=stop_index
                 )
 
-        self.is_in_constructor=False
+        self.is_in_constructor = False
 
-    def enterExpression21(self,ctx:JavaParserLabeled.Expression21Context):
+    def enterExpression21(self, ctx: JavaParserLabeled.Expression21Context):
         if self.is_source_class and self.is_in_constructor:
-            if len(ctx.children[0].children)==1:
+            if len(ctx.children[0].children) == 1:
                 self.fields_in_constructor.append(ctx.children[0].getText())
             else:
                 self.fields_in_constructor.append(ctx.children[0].children[-1].getText())
 
-    def enterMethodCall0(self, ctx:JavaParserLabeled.MethodCall0Context):
+    def enterMethodCall0(self, ctx: JavaParserLabeled.MethodCall0Context):
         if self.is_source_class and self.is_in_constructor:
             self.methods_in_constructor.append(ctx.IDENTIFIER())
-
-
 
 
 """
@@ -301,10 +325,10 @@ def update_understand_database(udb_path, project_dir=None, und_path='/home/ali/s
     process.wait()
 
 
-#=======================================================================
+# =======================================================================
 class FindUsagesListener(JavaParserLabeledListener):
     def __init__(
-            self,common_token_stream: CommonTokenStream = None,
+            self, common_token_stream: CommonTokenStream = None,
             source_class: str = None, new_class: str = None,
             moved_fields=None, moved_methods=None,
             output_path: str = ""):
@@ -344,8 +368,7 @@ class FindUsagesListener(JavaParserLabeledListener):
         self.code = ""
 
 
-
-#=======================================================================
+# =======================================================================
 
 
 class ExtractSubclassAPI:
@@ -420,10 +443,11 @@ class ExtractSubclassAPI:
     # def propagate_refactor(self):
 
 
-
-
-
 def main():
+    """
+    it builds the parse tree and walk its corresponding walker so that our overridden methods run.
+    """
+
     # udb_path = "/home/ali/Desktop/code/TestProject/TestProject.udb"
     # udb_path=create_understand_database("C:\\Users\\asus\\Desktop\\test_project")
     # source_class = "GodClass"
@@ -468,10 +492,9 @@ def main():
     with open(father_path_file, mode='w', newline='') as f:
         f.write(my_listener.token_stream_rewriter.getDefaultText())
 
-    #================================================================================
+    # ================================================================================
 
     # find_usages_listener = FindUsagesListener()
-
 
 
 if __name__ == '__main__':
