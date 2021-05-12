@@ -343,7 +343,6 @@ class FindUsagesListener(JavaParserLabeledListener):
         self.NEW_LINE = "\n"
         self.code = ""
 
-    # def enter
 
 
 #=======================================================================
